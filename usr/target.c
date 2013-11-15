@@ -400,16 +400,15 @@ tgtadm_err tgt_device_path_update(struct target *target, struct scsi_lu *lu,
 	int dev_fd;
 	uint64_t size;
 	int err;
+	int hold_online = lu->attrs.online;
 
 	if (lu->path) {
 		int ret;
 
-		if (lu->attrs.online)
-			return TGTADM_INVALID_REQUEST;
-
-		ret = lu->dev_type_template.lu_offline(lu);
-		if (ret)
-			return ret;
+		if (hold_online)
+			ret = lu->dev_type_template.lu_offline(lu);
+			if (ret)
+				return ret;
 
 		lu->bst->bs_close(lu);
 		free(lu->path);
@@ -433,7 +432,11 @@ tgtadm_err tgt_device_path_update(struct target *target, struct scsi_lu *lu,
 	lu->addr = 0;
 	lu->size = size;
 	lu->path = path;
-	return lu->dev_type_template.lu_online(lu);
+
+	if (hold_online)
+		return lu->dev_type_template.lu_online(lu);
+
+	return TGTADM_SUCCESS;
 }
 
 static struct scsi_lu *
